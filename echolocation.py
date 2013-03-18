@@ -7,13 +7,70 @@ class The_GUI(tk.Frame):
 	def __init__(self, master=None):
 		tk.Frame.__init__(self,master)
 		self.grid()
+
+		self.onOff=tk.StringVar()
+		self.onOff.set("Off")
+		
+		self.automanual=tk.StringVar()
+		self.automanual.set("Automatic")
 		self.createWidgets()
 
+#ERASE LATER - STATUS is working on getting the tk.button to update in real time based on the tk boolean var onOff
+
 	def createWidgets(self):
-		self.onOffButton=tk.Button(self, text='On/Off',command=self.quit)
-		self.onOffButton.grid()
 
+		self.onOffButton		=tk.Button(self, textvariable=self.onOff,command=self.OnOffHandler,relief=tk.SUNKEN)
+		self.onOffStatus		=tk.Label(self)
+		self.modeButton			=tk.Button(self, textvariable=self.automanual,command=self.AutoManualHandler)
+		self.volTextInput		=tk.Entry(self,text='100')
+		self.volUpButton		=tk.Button(self, text='+',	command=self.quit)
+		self.volDownButton		=tk.Button(self, text='-',	command=self.quit)
+		self.slowdownTextInput	=tk.Entry(self, text='Slowdown')
+		self.slowdownScale 		=tk.Scale(self)
+		self.distanceTextInput 	=tk.Entry(self, text='dist')
+		self.distanceScale 		=tk.Scale(self)
+		self.chirpButtonFrame   =tk.Frame(self)
+		self.chirpButton1m 		=tk.Button(self.chirpButtonFrame,text='1 M Chirp')
+		self.chirpButton3m 		=tk.Button(self.chirpButtonFrame,text='3 M Chirp')
+		self.chirpButton10m 	=tk.Button(self.chirpButtonFrame,text='10 M Chirp')
+		self.chirpButton30m 	=tk.Button(self.chirpButtonFrame,text='30 M Chirp')
+		self.chirpButtonNike 	=tk.Button(self.chirpButtonFrame,text='Just do it')
+		self.onOffButton.grid(row=0,column=0,padx=50)
+		self.modeButton.grid(row=1,column=3,padx=50)
+		self.volTextInput.grid(	column=3,padx=50)
+		self.volUpButton.grid(	column=4,padx=50)
+		self.volDownButton.grid(column=4,padx=50)
+		self.slowdownTextInput.grid(column=3,padx=50)
+		self.slowdownScale.grid(column=4,padx=50)
+		self.distanceTextInput.grid(column=3,padx=50)
+		self.distanceScale.grid(column=4,padx=50)
+		self.chirpButtonFrame.grid(column=3,padx=50)
+		self.chirpButton1m.grid(row=0,column=0,in_=self.chirpButtonFrame)
+		self.chirpButton3m.grid(row=0,column=1,in_=self.chirpButtonFrame)
+		self.chirpButton10m.grid(row=0,column=2,in_=self.chirpButtonFrame)
+		self.chirpButton30m.grid(row=0,column=3,in_=self.chirpButtonFrame)
+		self.chirpButtonNike.grid(row=0,column=4,in_=self.chirpButtonFrame)
 
+	def OnOffHandler(self):
+		onoff=self.onOff.get()
+		if onoff=="On":
+			self.onOff.set("Off")
+		elif onoff=="Off":
+			self.onOff.set("On")
+		else:
+			self.onOff.set("PROBLEM")
+
+	def AutoManualHandler(self):
+		onoff=self.automanual.get()
+		if onoff=="Manual":
+			self.automanual.set("Automatic")
+		elif onoff=="Automatic":
+			self.automanual.set("Manual")
+		else:
+			self.automanual.set("PROBLEM")
+		
+
+	
 
 if __name__=="__main__":
 	the_gui=The_GUI()
