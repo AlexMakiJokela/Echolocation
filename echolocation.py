@@ -6,6 +6,7 @@ import time
 import sys
 import wave
 import mess_deprecated
+import echo_sound_functions
 
 #TODO:
 #Improve GUI layout
@@ -104,17 +105,17 @@ class The_GUI(tk.Frame):
 		self.last_distance.set(start_dist)
 
 		self.createWidgets()
-		master.bind("<Left>",self.DecreaseDistance)
+		master.bind("<Left>",self.DecreaseDistance)   #Set these a little differently
 		master.bind("<Right>",self.IncreaseDistance)
 		master.bind("<Up>",self.DecreaseSlowdown)
 		master.bind("<Down>",self.IncreaseSlowdown)
 		master.bind("<minus>",self.DecreaseVolume)
 		master.bind("<equal>",self.IncreaseVolume)
-		master.bind("<c>",self.CycleChirp)
-		master.bind("<1>",self.PlayOneMeterChirp)
-		master.bind("<2>",self.PlayThreeMeterChirp)
-		master.bind("<3>",self.PlayTenMeterChirp)
-		master.bind("<4>",self.PlayThirtyMeterChirp)
+		master.bind("c",self.CycleChirp)
+		master.bind("1",self.PlayOneMeterChirp)
+		master.bind("2",self.PlayThreeMeterChirp)
+		master.bind("3",self.PlayTenMeterChirp)
+		master.bind("4",self.PlayThirtyMeterChirp)
 		master.bind("<space>",self.RepeatLastChirp)
 		master.bind("<m>",self.PlayManualDistanceChirp)
 		master.bind("<a>",self.AutoManualSwitch)
@@ -130,15 +131,15 @@ class The_GUI(tk.Frame):
 		self.modeButton			=tk.Button(self, textvariable=self.automanual,command=self.AutoManualSwitch)
 
 		self.chirpSelFrame		=tk.Frame(self)
-		self.chirpSelText		=tk.Label(textvariable=self.chirp_to_play_name,width=2,height=2,font=('Arial','40'))
+		self.chirpSelText		=tk.Label(textvariable=self.chirp_to_play_name,width=10,height=2,font=('Arial','40'))
 		self.chirpSwitchButton	=tk.Button(self, text='Switch Chirp',	command=self.CycleChirp)	
 
 		self.volFrame			=tk.Frame(self)
 		self.volText	 		=tk.Label(textvariable=self.volume,width=2,height=2,font=('Arial','40'))
 #		self.volTextInput		=tk.Entry(self,textvariable=self.volume)
 #		self.volTextInput		=MaxLengthEntry(self, value=self.volume, maxlength=2,width=4,font=('Arial','40'))
-		self.volUpButton		=tk.Button(self, text='+',font=('Arial','50'),width=2,height=2,	command=self.IncreaseVolume)
-		self.volDownButton		=tk.Button(self, text='-',font=('Arial','50'),width=2,			command=self.DecreaseVolume)
+		self.volUpButton		=tk.Button(self, text='+',font=('Arial','50'),width=2,	command=self.IncreaseVolume)
+		self.volDownButton		=tk.Button(self, text='-',font=('Arial','50'),width=2,	command=self.DecreaseVolume)
 		
 		self.slowdownFrame		=tk.Frame(self)
 		self.slowdownText		=tk.Label(textvariable=self.slowdown,width=2,height=2,font=('Arial','40'))
@@ -167,31 +168,31 @@ class The_GUI(tk.Frame):
 		self.onOffButton.grid(row=0,column=0)
 		self.modeButton.grid(row=0,column=1)
 		
-		self.chirpSelFrame.grid(row=1,column=0,pady=30)
+		self.chirpSelFrame.grid(row=1,column=0,pady=10)
 		self.chirpSelText.grid(column=0,in_=self.chirpSelFrame)
 		self.chirpSwitchButton.grid(column=1,row=0,ipadx=5,in_=self.chirpSelFrame)
 
-		self.volFrame.grid(	row=2,column=0,pady=30)
+		self.volFrame.grid(	row=2,column=0,pady=10)
 		self.volText.grid(column=0,row=0,in_=self.volFrame)
 		self.volUpButton.grid(column=1,row=0,in_=self.volFrame)
 		self.volDownButton.grid(column=1,row=1,in_=self.volFrame)
 
-		self.slowdownFrame.grid(row=3,column=0,pady=30)
+		self.slowdownFrame.grid(row=3,column=0,pady=10)
 		self.slowdownText.grid(column=0,in_=self.slowdownFrame)
 		self.slowdownUpButton.grid(column=1,row=0,ipadx=5,in_=self.slowdownFrame)
 		self.slowdownDownButton.grid(column=1,row=1,padx=20,in_=self.slowdownFrame)
 
-		self.distanceFrame.grid(row=4,column=0,pady=30)
+		self.distanceFrame.grid(row=4,column=0,pady=10)
 		self.distanceText.grid(column=0,in_=self.distanceFrame)
 		self.distanceUpButton.grid(column=1,row=0,padx=20,in_=self.distanceFrame)
 		self.distanceDownButton.grid(column=1,row=1,padx=20,in_=self.distanceFrame)
 
 		self.chirpButtonFrame.grid(column=0,padx=50)
-		self.chirpButtonInstr.grid(row=0,column=0,columnspan=4, in_=self.chirpButtonFrame)
-		self.chirpButton1m.grid(row=1,column=0,in_=self.chirpButtonFrame)
-		self.chirpButton3m.grid(row=1,column=1,in_=self.chirpButtonFrame)
-		self.chirpButton10m.grid(row=1,column=2,in_=self.chirpButtonFrame)
-		self.chirpButton30m.grid(row=1,column=3,in_=self.chirpButtonFrame)
+		self.chirpButtonInstr.grid(row=1,column=0, in_=self.chirpButtonFrame)
+		self.chirpButton1m.grid(row=1,column=1,in_=self.chirpButtonFrame)
+		self.chirpButton3m.grid(row=1,column=2,in_=self.chirpButtonFrame)
+		self.chirpButton10m.grid(row=1,column=3,in_=self.chirpButtonFrame)
+		self.chirpButton30m.grid(row=1,column=4,in_=self.chirpButtonFrame)
 		self.chirpButtonRepeatLast.grid(row=2,column=0,columnspan=4,in_=self.chirpButtonFrame)
 
 
@@ -303,15 +304,6 @@ class The_GUI(tk.Frame):
 	
 
 
-def GenerateTheChirp():
-	#If swoop, return the rampswoop with the right parameters
-	#or white noise
-	#etcetera
-	#eventually just do this all in memory. For now, balls to pyaudio's callback convolutedness.
-	return
-
-
-
 
 def EchoAndPlayback(swoop,echo_distance, slowdown): #also incorporate chirp type, slowdown, volume. Pass in the chirp as a variable instead of reading from file each time
 	#SILENCE_LENGTH = 0.08 # the end of the chirp gets cut off if not for this
@@ -320,6 +312,8 @@ def EchoAndPlayback(swoop,echo_distance, slowdown): #also incorporate chirp type
 	#HARMONIC_START = 1
 	#HARMONIC_END = 1
 	#RECORD_DELAY = 0.75
+	print "WHAT GIVES",echo_distance,slowdown
+	time.sleep(40000)
 	echo_wait = echo_distance * 2 /313.3
 	#Chirp output settings
 
@@ -342,9 +336,16 @@ def EchoAndPlayback(swoop,echo_distance, slowdown): #also incorporate chirp type
 	#Microphone input settings
 	FORMAT=pyaudio.paInt16
 	CHANNELS=2
-	RATE=44100
+	RATE=44100 #GET RID OF RATE TODO
+	F_SAMP_ULTRA = 192000
+	F_SAMP_HEAD = 44100
 	WAVE_OUTPUT_FILENAME="current_echo.wav"
+	RECORD_DELAY = 0.75
 	CHUNK=1024
+	chirp_duration = 5 #bats are 2e-3 to 5e-3
+	chirp_low_freq = 25
+	chirp_bandwidth = 48 - chirp_low_freq #bat minimum is around 2.5e4 to 3e4 in those bats which chirp
+
 	chirp=wave.open(CHIRP_INPUT_FILENAME)
 	pplay=pyaudio.PyAudio()
 	precord=pyaudio.PyAudio()
@@ -363,8 +364,8 @@ def EchoAndPlayback(swoop,echo_distance, slowdown): #also incorporate chirp type
 	instream.start_stream()
 	instream.start=instream.get_time()
 	outstream.start_stream()
-	print "GO"
-	time.sleep(2)
+	print "Playing chirp and recording...",echo_distance,slowdown
+#	time.sleep(2)
 	data = chirp.readframes(CHUNK)
 
 	while data != '':
@@ -378,16 +379,17 @@ def EchoAndPlayback(swoop,echo_distance, slowdown): #also incorporate chirp type
 	outstream.close()
 	instream.stop_stream()
 	instream.close()
-
 	pplay.terminate()
 	precord.terminate()
 
+#	input_signal=the_recording
+	outputsignal=echo_sound_functions.process_input_signal(the_recording,F_SAMP_ULTRA,chirp_low_freq,chirp_bandwidth, RECORD_DELAY, chirp_duration)
 
 	wf=wave.open(WAVE_OUTPUT_FILENAME,'wb')
 	wf.setnchannels(CHANNELS)
 	wf.setsampwidth(precord.get_sample_size(FORMAT))
 	wf.setframerate(RATE)
-	wf.writeframes(b''.join(the_recording))
+	wf.writeframes(b''.join(outputsignal))
 	wf.close()
 	wf=wave.open(WAVE_OUTPUT_FILENAME,'rb')
 
@@ -406,7 +408,7 @@ def EchoAndPlayback(swoop,echo_distance, slowdown): #also incorporate chirp type
 
 	stream.stop_stream()
 	stream.close()
-	
+	#time.sleep( max([0,size(input_signal_cut,1)/playback_FS - ACQUISITION_DURATION - SILENCE_LENGTH - PLAY_DELAY - RECORD_DELAY]) - PROC_DELAY )
 
 
 if __name__=="__main__":
