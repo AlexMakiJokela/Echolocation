@@ -63,10 +63,10 @@ def process_input_signal(input_signal,F_SAMP_ULTRA,chirp_low_freq,chirp_bandwidt
         input_signal[:,jj] = highpass_filter(input_signal[:,jj], F_SAMP_ULTRA, 0.9*chirp_low_freq*1e3)
         input_signal[:,jj] = lowpass_filter(input_signal[:,jj], F_SAMP_ULTRA, 1/0.9 * (chirp_low_freq + chirp_bandwidth)*1e3)
     
-    eind = floor((RECORD_DELAY*F_SAMP_ULTRA))
-    cut_range = range((eind-2000),(eind+5000))
+    eind = np.floor((RECORD_DELAY*F_SAMP_ULTRA))
+    cut_range = range(int((eind-2000)),int((eind+5000)))
     if max(cut_range) > input_signal.shape[0]:
-        cut_range = cut_range - (max(cut_range) - input_signal.shape[0]+1 )
+        cut_range = cut_range - (max(cut_range) - input_signal.shape[0]+1 ) ##epewofjwepojwopfgjpojpowerjp
         eind = eind - (max(cut_range) - input_signal.shape[0]+1 )
     
     msig = max( abs(input_signal[cut_range,:]), [], 2 )
