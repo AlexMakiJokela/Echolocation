@@ -1,5 +1,6 @@
 import datetime
 import Tkinter as tk
+import numpy as np
 import pyaudio
 import collections
 import time
@@ -103,7 +104,9 @@ class The_GUI(tk.Frame):
 
 		self.last_distance=tk.StringVar()
 		self.last_distance.set(start_dist)
-
+		self.ultra_in,self.ultra_out,self.head_out=self.get_channels()
+		self.channel_list=[self.ultra_in,self.ultra_out,self.head_out]
+		create_swoop_chirp()
 		self.createWidgets()
 		master.bind("<Left>",self.DecreaseDistance)   #Set these a little differently
 		master.bind("<Right>",self.IncreaseDistance)
@@ -121,9 +124,22 @@ class The_GUI(tk.Frame):
 		master.bind("<a>",self.AutoManualSwitch)
 		master.bind("<o>",self.OnOffSwitch)
 		
-
-#ERASE LATER - STATUS is working on getting the tk.button to update in real time based on the tk boolean var onOff
-
+	def get_channels(self):
+		ultra_in=1
+		ultra_out=10
+		head_out=9
+		pa = pyaudio.PyAudio()
+		chans=pa.get_device_count()
+		for x in range(0,chans):
+			nam=pa.get_device_info_by_index(x)['name']
+			if 'Line (Juli@ Audio)' in nam:
+				ultra_in=x
+			if 'Speakers (Juli@ Audio)' in nam:
+				ultra_out=x
+			if 'GIGAPort HD' in nam:
+				head_out=x
+		return ultra_in, ultra_out, head_out
+		
 	def createWidgets(self):
 
 		self.onOffButton		=tk.Button(self, textvariable=self.onOff,command=self.OnOffSwitch,relief=tk.SUNKEN)
@@ -275,49 +291,51 @@ class The_GUI(tk.Frame):
 	def PlayManualDistanceChirp(self, event = None):
 		distance=int(self.distance.get())
 		slowdown=int(self.slowdown.get())
-		EchoAndPlayback(self.chirp_to_play_sound,distance,slowdown)
+		EchoAndPlayback(self.chirp_to_play_sound,distance,slowdown,self.channel_list)
 		self.last_distance.set(str(distance))
 
 	def PlayOneMeterChirp(self, event = None):
 		slowdown=int(self.slowdown.get())
-		EchoAndPlayback(self.chirp_to_play_sound,1,slowdown)
+		EchoAndPlayback(self.chirp_to_play_sound,1,slowdown,self.channel_list)
 		self.last_distance.set("1")
 
 	def PlayThreeMeterChirp(self, event = None):
 		slowdown=int(self.slowdown.get())
-		EchoAndPlayback(self.chirp_to_play_sound,3,slowdown)
+		EchoAndPlayback(self.chirp_to_play_sound,3,slowdown,self.channel_list)
 		self.last_distance.set("3")
 	
 	def PlayTenMeterChirp(self, event = None):
 		slowdown=int(self.slowdown.get())
-		EchoAndPlayback(self.chirp_to_play_sound,10,slowdown)
+		EchoAndPlayback(self.chirp_to_play_sound,10,slowdown,self.channel_list)
 		self.last_distance.set("10")
 	
 	def PlayThirtyMeterChirp(self, event = None):
 		slowdown=int(self.slowdown.get())
-		EchoAndPlayback(self.chirp_to_play_sound,30,slowdown)
+		EchoAndPlayback(self.chirp_to_play_sound,30,slowdown,self.channel_list)
 		self.last_distance.set("30")
 
 	def RepeatLastChirp(self, event = None):
 		slowdown=int(self.slowdown.get())
-		EchoAndPlayback(self.chirp_to_play_sound,last_dist,slowdown)
+		EchoAndPlayback(self.chirp_to_play_sound,last_dist,slowdown,self.channel_list)
 	
 
 
 
-def EchoAndPlayback(swoop,echo_distance, slowdown): #also incorporate chirp type, slowdown, volume. Pass in the chirp as a variable instead of reading from file each time
+def EchoAndPlayback(swoop,echo_distance, slowdown, channel_list): #also incorporate chirp type, slowdown, volume. Pass in the chirp as a variable instead of reading from file each time
 	#SILENCE_LENGTH = 0.08 # the end of the chirp gets cut off if not for this
 	#PLAY_DELAY = 0 # pause this long at the beginning
 	# if we want to generate a harmonic stack instead of a single frequency
 	#HARMONIC_START = 1
 	#HARMONIC_END = 1
 	#RECORD_DELAY = 0.75
-	print "WHAT GIVES",echo_distance,slowdown
-	time.sleep(40000)
+	print "Echo",echo_distance,slowdown
 	echo_wait = echo_distance * 2 /313.3
+	ultra_in=channel_list[0]
+	ultra_out=channel_list[1]
+	head_out=channel_list[2]
 	#Chirp output settings
 
-	CHIRP_INPUT_FILENAME="temporary2.wav"
+	CHIRP_INPUT_FILENAME="swoop.wav"
 	the_recording=[]
 
 	def play_callback(in_data, frame_count, time_info, status):
@@ -327,6 +345,7 @@ def EchoAndPlayback(swoop,echo_distance, slowdown): #also incorporate chirp type
 	def record_callback(in_data, frame_count, time_info, status):
 		current_duration=instream.get_time()-instream.start
 		the_recording.append(in_data)
+		print frame_count
 		#print current_duration
 		if current_duration>echo_wait:
 			return (in_data, pyaudio.paComplete)
@@ -352,13 +371,15 @@ def EchoAndPlayback(swoop,echo_distance, slowdown): #also incorporate chirp type
 	outstream=pplay.open(format=pplay.get_format_from_width(chirp.getsampwidth()),
 					channels=chirp.getnchannels(),
 					rate=chirp.getframerate(),
-					output=True)#3,
+					output=True,
+					output_device_index=ultra_out)#3,
 					#3stream_callback=play_callback)
 
 	instream=precord.open(format=FORMAT,
 		channels=CHANNELS,
-		rate=RATE,
+		rate=F_SAMP_ULTRA,
 		input=True,
+		input_device_index=ultra_in,
 		stream_callback=record_callback)
 
 	instream.start_stream()
@@ -381,7 +402,17 @@ def EchoAndPlayback(swoop,echo_distance, slowdown): #also incorporate chirp type
 	instream.close()
 	pplay.terminate()
 	precord.terminate()
-
+	print len(the_recording)
+	print "x"
+	print len(the_recording[0])
+	#print the_recording
+	the_recording=np.array(the_recording)
+	#time.sleep(20)
+	print the_recording
+	print the_recording[0][0:1024*3]
+	print the_recording[0][1024*3:1024*6]
+	print the_recording[0][1024*6:1024:9]
+	print the_recording[0][1024*8:]
 #	input_signal=the_recording
 	outputsignal=echo_sound_functions.process_input_signal(the_recording,F_SAMP_ULTRA,chirp_low_freq,chirp_bandwidth, RECORD_DELAY, chirp_duration)
 
@@ -398,7 +429,8 @@ def EchoAndPlayback(swoop,echo_distance, slowdown): #also incorporate chirp type
 	stream=p.open(format=FORMAT,
                 channels=CHANNELS,
                 rate=RATE,
-                output=True)
+                output=True,
+				output_device_index=head_out)
 
 	data = wf.readframes(CHUNK)
 
@@ -410,6 +442,21 @@ def EchoAndPlayback(swoop,echo_distance, slowdown): #also incorporate chirp type
 	stream.close()
 	#time.sleep( max([0,size(input_signal_cut,1)/playback_FS - ACQUISITION_DURATION - SILENCE_LENGTH - PLAY_DELAY - RECORD_DELAY]) - PROC_DELAY )
 
+
+def create_swoop_chirp():
+	p = pyaudio.PyAudio()
+ 	FORMAT=pyaudio.paInt16
+	ultra_rate=192000
+	rs= echo_sound_functions.generate_rampswoop(192000,0.005,25000,25000+48000,1,1,0.0005)	
+	rsi=rs* 32767 
+	rswave=rsi.astype(np.int)
+	signal = "".join((wave.struct.pack('h', item) for item in rswave))	
+	writewav=wave.open("swoop.wav",'wb')
+	writewav.setnchannels(1)
+	writewav.setsampwidth(p.get_sample_size(FORMAT))
+	writewav.setframerate(ultra_rate)
+	writewav.writeframes(str(signal))
+	writewav.close()
 
 if __name__=="__main__":
 	root=tk.Tk()

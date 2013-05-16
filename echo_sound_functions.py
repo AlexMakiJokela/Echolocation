@@ -58,10 +58,10 @@ def lowpass_filter(x,Fs,c):
 	return y
 
 def process_input_signal(input_signal,F_SAMP_ULTRA,chirp_low_freq,chirp_bandwidth, RECORD_DELAY, chirp_duration):
-       
+    print input_signal.shape   
     for jj in [0,1]:
-        input_signal[:,jj] = highpass(input_signal[:,jj], F_SAMP_ULTRA, 0.9*chirp_low_freq*1e3)
-        input_signal[:,jj] = lowpass(input_signal[:,jj], F_SAMP_ULTRA, 1/0.9 * (chirp_low_freq + chirp_bandwidth)*1e3)
+        input_signal[:,jj] = highpass_filter(input_signal[:,jj], F_SAMP_ULTRA, 0.9*chirp_low_freq*1e3)
+        input_signal[:,jj] = lowpass_filter(input_signal[:,jj], F_SAMP_ULTRA, 1/0.9 * (chirp_low_freq + chirp_bandwidth)*1e3)
     
     eind = floor((RECORD_DELAY*F_SAMP_ULTRA))
     cut_range = range((eind-2000),(eind+5000))
