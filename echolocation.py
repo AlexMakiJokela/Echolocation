@@ -2,9 +2,12 @@ import datetime
 import Tkinter as tk
 import numpy as np
 import pyaudio
+from scipy.io import wavfile
 import collections
 import time
 import sys
+import thread
+import Queue
 import wave
 import mess_deprecated
 import echo_sound_functions
@@ -65,7 +68,7 @@ class MaxLengthEntry(ValidatingEntry):
 
 
 class The_GUI(tk.Frame):
-    def __init__(self, master, title="Sonic Eye", start_vol="50",start_slowdown="2",start_dist="3", start_onoff="Off", 
+    def __init__(self, master, title="Sonic Eye", start_vol="50",start_slowdown="25",start_dist="3", start_onoff="On", 
                 start_automanual="Manual", self_chirpstartnum="0"):
         tk.Frame.__init__(self,master)
         self.title=title
@@ -74,7 +77,7 @@ class The_GUI(tk.Frame):
         self.onOff=tk.StringVar()
         self.onOff.set(start_onoff)
 
-        self.volume=tk.StringVar()
+        self.volume=tk.StringVar() #Volume doesn't do anything yet
         self.volume.set(start_vol)
         
         self.distance=tk.StringVar()
@@ -87,11 +90,11 @@ class The_GUI(tk.Frame):
         self.automanual.set(start_automanual)
 
         self.chirpdistancelabel=tk.StringVar()
-        self.chirpdistancelabel.set("Set Chirp Distance")
+        self.chirpdistancelabel.set("Play Chirp")
 
         self.possible_chirps=collections.defaultdict()
-        self.chirplist=["PLAYBACK"]
-        self.possible_chirps["PLAYBACK"]="playbackexample.wav"
+        self.chirplist=["(WIP)"]
+        self.possible_chirps["(WIP)"]="playbackexample.wav"
         self.chirp_to_play_num=tk.StringVar()
         self.chirp_to_play_name=tk.StringVar()
         self.chirp_to_play_num.set(self_chirpstartnum)
@@ -106,7 +109,7 @@ class The_GUI(tk.Frame):
         self.last_distance.set(start_dist)
         self.ultra_in,self.ultra_out,self.head_out=self.get_channels()
         self.channel_list=[self.ultra_in,self.ultra_out,self.head_out]
-        create_swoop_chirp()
+        self.swoop=create_swoop_chirp()
         self.createWidgets()
         master.bind("<Left>",self.DecreaseDistance)   #Set these a little differently
         master.bind("<Right>",self.IncreaseDistance)
@@ -141,31 +144,35 @@ class The_GUI(tk.Frame):
         return ultra_in, ultra_out, head_out
         
     def createWidgets(self):
-
-        self.onOffButton        =tk.Button(self, textvariable=self.onOff,command=self.OnOffSwitch,relief=tk.SUNKEN)
+    
+        self.OOAMFrame          =tk.Frame(self)
+        self.onOffButton        =tk.Button(self, textvariable=self.onOff,command=self.OnOffSwitch,font=('Arial','20'))
         self.onOffStatus        =tk.Label(self)
-        self.modeButton         =tk.Button(self, textvariable=self.automanual,command=self.AutoManualSwitch)
+        self.modeButton         =tk.Button(self, textvariable=self.automanual,width=10,command=self.AutoManualSwitch,font=('Arial','20'))
 
         self.chirpSelFrame      =tk.Frame(self)
-        self.chirpSelText       =tk.Label(textvariable=self.chirp_to_play_name,width=10,height=2,font=('Arial','40'))
-        self.chirpSwitchButton  =tk.Button(self, text='Switch Chirp',   command=self.CycleChirp)    
+        self.chirpSelTitle      =tk.Label(text="Chirp Type: ",width=12,font=('Arial','20'))
+        self.chirpSelText       =tk.Label(textvariable=self.chirp_to_play_name,width=10,font=('Arial','15'))
+        self.chirpSwitchButton  =tk.Button(self, text='Change',   command=self.CycleChirp,font=('Arial','15'))    
 
-        self.volFrame           =tk.Frame(self)
-        self.volText            =tk.Label(textvariable=self.volume,width=2,height=2,font=('Arial','40'))
-#       self.volTextInput       =tk.Entry(self,textvariable=self.volume)
-#       self.volTextInput       =MaxLengthEntry(self, value=self.volume, maxlength=2,width=4,font=('Arial','40'))
-        self.volUpButton        =tk.Button(self, text='+',font=('Arial','50'),width=2,  command=self.IncreaseVolume)
-        self.volDownButton      =tk.Button(self, text='-',font=('Arial','50'),width=2,  command=self.DecreaseVolume)
+       # self.volFrame           =tk.Frame(self)
+       # self.volText            =tk.Label(textvariable=self.volume,width=2,height=2,font=('Arial','40'))
+       # self.volTextInput       =tk.Entry(self,textvariable=self.volume)
+       # self.volTextInput       =MaxLengthEntry(self, value=self.volume, maxlength=2,width=4,font=('Arial','40'))
+       # self.volUpButton        =tk.Button(self, text='+',font=('Arial','50'),width=2,  command=self.IncreaseVolume)
+       # self.volDownButton      =tk.Button(self, text='-',font=('Arial','50'),width=2,  command=self.DecreaseVolume)
         
         self.slowdownFrame      =tk.Frame(self)
-        self.slowdownText       =tk.Label(textvariable=self.slowdown,width=2,height=2,font=('Arial','40'))
-        self.slowdownUpButton   =tk.Button(self, text='+',  command=self.IncreaseSlowdown)
-        self.slowdownDownButton =tk.Button(self, text='-',  command=self.DecreaseSlowdown)
+        self.slowdownTitle      =tk.Label(text="Slowdown",font=('Arial','30'))
+        self.slowdownText       =tk.Label(textvariable=self.slowdown,width=2,font=('Arial','20'))
+        self.slowdownUpButton   =tk.Button(self, text='+',  command=self.IncreaseSlowdown,font=('Arial','20'))
+        self.slowdownDownButton =tk.Button(self, text='-',  command=self.DecreaseSlowdown,font=('Arial','20'))
         
         self.distanceFrame      =tk.Frame(self)
-        self.distanceText       =tk.Label(textvariable=self.distance,width=2,height=2,font=('Arial','40'))
-        self.distanceUpButton   =tk.Button(self, text='+',  command=self.IncreaseDistance)
-        self.distanceDownButton =tk.Button(self, text='-',  command=self.DecreaseDistance)
+        self.distanceTitle      =tk.Label(text="Distance",font=('Arial','30'))
+        self.distanceText       =tk.Label(textvariable=self.distance,width=2,font=('Arial','20'))
+        self.distanceUpButton   =tk.Button(self, text='+',  command=self.IncreaseDistance,font=('Arial','20'))
+        self.distanceDownButton =tk.Button(self, text='-',  command=self.DecreaseDistance,font=('Arial','20'))
                 
 
         #self.slowdownTextInput =tk.Entry(self, text='Slowdown')
@@ -173,43 +180,48 @@ class The_GUI(tk.Frame):
         #self.distanceTextInput     =tk.Entry(self, text='dist')
         #self.distanceScale         =tk.Scale(self)
         self.chirpButtonFrame   =tk.Frame(self)
-        self.chirpButtonInstr   =tk.Label(textvariable=self.chirpdistancelabel)
-        self.chirpButton1m      =tk.Button(self.chirpButtonFrame,text='1M',command=self.PlayOneMeterChirp)
-        self.chirpButton3m      =tk.Button(self.chirpButtonFrame,text='3M',command=self.PlayThreeMeterChirp)
-        self.chirpButton10m     =tk.Button(self.chirpButtonFrame,text='10M',command=self.PlayTenMeterChirp)
-        self.chirpButton30m     =tk.Button(self.chirpButtonFrame,text='30M',command=self.PlayThirtyMeterChirp)
-        self.chirpButtonRepeatLast  =tk.Button(self.chirpButtonFrame,text='Repeat Last',command=self.RepeatLastChirp)
-        self.chirpButtonManual  =tk.Button(self.chirpButtonFrame,text='Manual Distance',command=self.PlayManualDistanceChirp)
+        self.chirpButtonInstr   =tk.Label(textvariable=self.chirpdistancelabel,font=('Arial','20'),width=20)
+        self.chirpButton1m      =tk.Button(self.chirpButtonFrame,text='1M',command=self.PlayOneMeterChirp,font=('Arial','12'))
+        self.chirpButton3m      =tk.Button(self.chirpButtonFrame,text='3M',command=self.PlayThreeMeterChirp,font=('Arial','12'))
+        self.chirpButton10m     =tk.Button(self.chirpButtonFrame,text='10M',command=self.PlayTenMeterChirp,font=('Arial','12'))
+        self.chirpButton30m     =tk.Button(self.chirpButtonFrame,text='30M',command=self.PlayThirtyMeterChirp,font=('Arial','12'))
+        self.chirpButtonRepeatLast  =tk.Button(self.chirpButtonFrame,text='Repeat Last',command=self.RepeatLastChirp,font=('Arial','12'))
+        self.chirpButtonManual  =tk.Button(self.chirpButtonFrame,text='Manual Distance',command=self.PlayManualDistanceChirp,font=('Arial','12'))
 
-        self.onOffButton.grid(row=0,column=0)
-        self.modeButton.grid(row=0,column=1)
+        self.OOAMFrame.grid(row=0,column=0,pady=10)
+        self.onOffButton.grid(row=0,column=0,padx=5,in_=self.OOAMFrame)
+     #   self.modeButton.grid(row=0,column=1,padx=5,in_=self.OOAMFrame)
         
-        self.chirpSelFrame.grid(row=1,column=0,pady=10)
-        self.chirpSelText.grid(column=0,in_=self.chirpSelFrame)
-        self.chirpSwitchButton.grid(column=1,row=0,ipadx=5,in_=self.chirpSelFrame)
+        self.chirpSelFrame.grid(row=1,column=0,pady=20)
+        self.chirpSelTitle.grid(row=0,column=0,in_=self.chirpSelFrame)
+        self.chirpSelText.grid(row=0,column=1,in_=self.chirpSelFrame)
+        self.chirpSwitchButton.grid(row=0,column=2,ipadx=5,in_=self.chirpSelFrame)
 
-        self.volFrame.grid( row=2,column=0,pady=10)
-        self.volText.grid(column=0,row=0,in_=self.volFrame)
-        self.volUpButton.grid(column=1,row=0,in_=self.volFrame)
-        self.volDownButton.grid(column=1,row=1,in_=self.volFrame)
+       # self.volFrame.grid( row=2,column=0,pady=10)
+       # self.volText.grid(column=0,row=0,in_=self.volFrame)
+       # self.volUpButton.grid(column=1,row=0,in_=self.volFrame)
+       # self.volDownButton.grid(column=1,row=1,in_=self.volFrame)
 
-        self.slowdownFrame.grid(row=3,column=0,pady=10)
-        self.slowdownText.grid(column=0,in_=self.slowdownFrame)
-        self.slowdownUpButton.grid(column=1,row=0,ipadx=5,in_=self.slowdownFrame)
-        self.slowdownDownButton.grid(column=1,row=1,padx=20,in_=self.slowdownFrame)
+        self.slowdownFrame.grid(row=2,column=0,pady=10)
+        self.slowdownTitle.grid(row=0,column=1,in_=self.slowdownFrame)
+        self.slowdownText.grid(row=1,column=1,in_=self.slowdownFrame)
+        self.slowdownUpButton.grid(row=1,column=2,ipadx=5,in_=self.slowdownFrame)
+        self.slowdownDownButton.grid(row=1,column=0,ipadx=5,in_=self.slowdownFrame)
 
-        self.distanceFrame.grid(row=4,column=0,pady=10)
-        self.distanceText.grid(column=0,in_=self.distanceFrame)
-        self.distanceUpButton.grid(column=1,row=0,padx=20,in_=self.distanceFrame)
-        self.distanceDownButton.grid(column=1,row=1,padx=20,in_=self.distanceFrame)
+        self.distanceFrame.grid(row=3,column=0,pady=10)
+        self.distanceTitle.grid(row=0,column=1,in_=self.distanceFrame)
+        self.distanceText.grid(row=1,column=1,in_=self.distanceFrame)
+        self.distanceUpButton.grid(row=1,column=2,ipadx=5,in_=self.distanceFrame)
+        self.distanceDownButton.grid(row=1,column=0,ipadx=5,in_=self.distanceFrame)
 
-        self.chirpButtonFrame.grid(column=0,padx=50)
-        self.chirpButtonInstr.grid(row=1,column=0, in_=self.chirpButtonFrame)
-        self.chirpButton1m.grid(row=1,column=1,in_=self.chirpButtonFrame)
-        self.chirpButton3m.grid(row=1,column=2,in_=self.chirpButtonFrame)
-        self.chirpButton10m.grid(row=1,column=3,in_=self.chirpButtonFrame)
-        self.chirpButton30m.grid(row=1,column=4,in_=self.chirpButtonFrame)
-        self.chirpButtonRepeatLast.grid(row=2,column=0,columnspan=4,in_=self.chirpButtonFrame)
+        self.chirpButtonFrame.grid(column=0,padx=50,pady=30 )
+        self.chirpButtonInstr.grid(row=0,column=0, in_=self.chirpButtonFrame)
+        self.chirpButton1m.grid(row=0,column=1,in_=self.chirpButtonFrame)
+        self.chirpButton3m.grid(row=0,column=2,in_=self.chirpButtonFrame)
+        self.chirpButton10m.grid(row=0,column=3,in_=self.chirpButtonFrame)
+        self.chirpButton30m.grid(row=0,column=4,in_=self.chirpButtonFrame)
+        self.chirpButtonRepeatLast.grid(row=0,column=5,in_=self.chirpButtonFrame)
+        self.chirpButtonManual.grid(row=0,column=6,in_=self.chirpButtonFrame)
 
 
     def OnOffSwitch(self, event = None):
@@ -222,16 +234,23 @@ class The_GUI(tk.Frame):
             self.onOff.set("PROBLEM")
 
     def AutoManualSwitch(self, event = None):
-        onoff=self.automanual.get()
-        if onoff=="Manual":
+        automanual=self.automanual.get()
+        if automanual=="Manual":
             self.automanual.set("Automatic")
             self.chirpdistancelabel.set("Set Chirp Distance")
-        elif onoff=="Automatic":
+      #      self.gofullauto()
+        elif automanual=="Automatic":
             self.automanual.set("Manual")
             self.chirpdistancelabel.set("Play Chirp")
         else:
             self.automanual.set("PROBLEM")
 
+  #  def gofullauto(self, event= None):
+   #     automanual=self.automanual.get()
+   #     while automanual=='Automatic':
+   #         self.PlayManualDistanceChirp()
+   #         automanual=self.automanual.get()
+            
     def CycleChirp(self, event = None):
         chirpnum=int(self.chirp_to_play_num.get())
         if chirpnum>=(len(self.possible_chirps)-1):
@@ -291,32 +310,63 @@ class The_GUI(tk.Frame):
     def PlayManualDistanceChirp(self, event = None):
         distance=int(self.distance.get())
         slowdown=int(self.slowdown.get())
-        EchoAndPlayback(self.chirp_to_play_sound,distance,slowdown,self.channel_list)
+        EchoAndPlayback(self.swoop,distance,slowdown,self.channel_list)
         self.last_distance.set(str(distance))
 
     def PlayOneMeterChirp(self, event = None):
-        slowdown=int(self.slowdown.get())
-        EchoAndPlayback(self.chirp_to_play_sound,1,slowdown,self.channel_list)
-        self.last_distance.set("1")
+        onoff=self.onOff.get()
+        if onoff=="On":
+            automanual=self.automanual.get()
+            if automanual=='Manual':
+                slowdown=int(self.slowdown.get())
+                EchoAndPlayback(self.swoop,1,slowdown,self.channel_list)
+            elif automanual=='Automatic': 
+                self.distance.set(str(1))
+            self.last_distance.set("1")
 
     def PlayThreeMeterChirp(self, event = None):
-        slowdown=int(self.slowdown.get())
-        EchoAndPlayback(self.chirp_to_play_sound,3,slowdown,self.channel_list)
-        self.last_distance.set("3")
+        onoff=self.onOff.get()
+        if onoff=="On":
+            automanual=self.automanual.get()
+            if automanual=='Manual':
+                slowdown=int(self.slowdown.get())
+                EchoAndPlayback(self.swoop,3,slowdown,self.channel_list)
+            elif automanual=='Automatic': 
+                self.distance.set(str(3))
+            self.last_distance.set("3")
+
     
     def PlayTenMeterChirp(self, event = None):
-        slowdown=int(self.slowdown.get())
-        EchoAndPlayback(self.chirp_to_play_sound,10,slowdown,self.channel_list)
-        self.last_distance.set("10")
+        onoff=self.onOff.get()
+        if onoff=="On":
+            automanual=self.automanual.get()
+            if automanual=='Manual':
+                slowdown=int(self.slowdown.get())
+                EchoAndPlayback(self.swoop,10,slowdown,self.channel_list)
+            elif automanual=='Automatic': 
+                self.distance.set(str(10))
+            self.last_distance.set("10")
+
     
     def PlayThirtyMeterChirp(self, event = None):
-        slowdown=int(self.slowdown.get())
-        EchoAndPlayback(self.chirp_to_play_sound,30,slowdown,self.channel_list)
-        self.last_distance.set("30")
+        onoff=self.onOff.get()
+        if onoff=="On":
+            automanual=self.automanual.get()
+            if automanual=='Manual':
+                slowdown=int(self.slowdown.get())
+                EchoAndPlayback(self.swoop,30,slowdown,self.channel_list)
+            elif automanual=='Automatic': 
+                self.distance.set(str(30))
+            self.last_distance.set("30")
 
     def RepeatLastChirp(self, event = None):
-        slowdown=int(self.slowdown.get())
-        EchoAndPlayback(self.chirp_to_play_sound,last_dist,slowdown,self.channel_list)
+        onoff=self.onOff.get()
+        if onoff=="On":
+            automanual=self.automanual.get()
+            if automanual=='Manual':
+                slowdown=int(self.slowdown.get())
+                last_dist=int(self.last_distance.get())
+                EchoAndPlayback(self.swoop,last_dist,slowdown,self.channel_list)
     
 
 
@@ -340,19 +390,35 @@ def EchoAndPlayback(swoop,echo_distance, slowdown, channel_list): #also incorpor
 
 
     
+    
     #Microphone input settings
     FORMAT=pyaudio.paInt16
     CHANNELS=2
-    RATE=44100 #GET RID OF RATE TODO
     F_SAMP_ULTRA = 192000
     F_SAMP_HEAD = 44100
-    WAVE_OUTPUT_FILENAME="current_echo.wav"
-    RECORD_DELAY = 0.75
-    CHUNK=1024
+    SILENCE_LENGTH = 0.2
+    PLAY_DELAY = 0.04
+    LAST_CHIRP_FILENAME="current_echo.wav"
+    RECORD_DELAY = 0
+    CHUNK=4096
     chirp_duration = 5 #bats are 2e-3 to 5e-3
     chirp_low_freq = 25
     chirp_bandwidth = 48 - chirp_low_freq #bat minimum is around 2.5e4 to 3e4 in those bats which chirp
-
+    print swoop.shape
+    swoop=np.hstack((np.zeros(np.ceil(F_SAMP_ULTRA*PLAY_DELAY)),swoop,np.zeros(np.ceil(F_SAMP_ULTRA*(SILENCE_LENGTH+echo_wait)))))
+    swoop=swoop*32767
+    swoop=swoop.astype(np.int16)
+    print swoop.shape
+    p=pyaudio.PyAudio()
+    writewav=wave.open("swoop.wav",'wb')
+    writewav.setnchannels(1)
+    writewav.setframerate(F_SAMP_ULTRA)
+    writewav.setsampwidth(p.get_sample_size(pyaudio.paInt16))
+    writewav.writeframes(swoop.tostring())
+    writewav.close()
+    
+    
+    
     def play_callback(in_data, frame_count, time_info, status):
         data = chirp.readframes(frame_count)
         return (data, pyaudio.paContinue)
@@ -371,74 +437,86 @@ def EchoAndPlayback(swoop,echo_distance, slowdown, channel_list): #also incorpor
     pplay=pyaudio.PyAudio()
     precord=pyaudio.PyAudio()
     frames=[]
-    outstream=pplay.open(format=pplay.get_format_from_width(chirp.getsampwidth()),
-                    channels=chirp.getnchannels(),
+    outstream=pplay.open(format=pyaudio.paInt16,
+                    channels=1,
                     rate=F_SAMP_ULTRA,
                     output=True,
                     output_device_index=ultra_out,
                     stream_callback=play_callback)#3,
                     #3stream_callback=play_callback)
 
-    instream=precord.open(format=FORMAT,
+    instream=precord.open(format=pyaudio.paFloat32,
         channels=CHANNELS,
         rate=F_SAMP_ULTRA,
         input=True,
         input_device_index=ultra_in)
-    
+    print "1-",time.clock()
     outstream.start_stream()
+    print "2-",time.clock()
     instream.start_stream()
+    print "3-",time.clock()
     print "Playing chirp and recording...",echo_distance,slowdown
 #   time.sleep(2)
-
+    elapsed=0.0
     tic=time.clock()
-    while outstream.is_active() or elapsed<echo_wait:
+    print "4-",time.clock()
+    while outstream.is_active():
         data=instream.read(CHUNK)
         frames.append(data)
         toc=time.clock()
         elapsed=toc-tic
 #       time.sleep(0.05)
 
+    print "5-",time.clock()
     instream.stop_stream()
     instream.close()
     outstream.stop_stream()
     outstream.close()
     pplay.terminate()
     precord.terminate()
-    print len(frames)
-    print "x"
+  #  print np.max(frames),np.min(frames)
+  #  print len(frames)
+   # print "x"
     #print the_recording
     frames=b''.join(frames)
-    print len(frames)
-    frames=np.fromstring(frames, dtype='uint8')
+  #  print len(frames)
+    frames=np.fromstring(frames, dtype=np.float32)
+    #frames=frames/32767.0
+    #print frames
     frames=frames.reshape((-1,2))
-    print frames
+    #print np.max(frames),np.min(frames)
+   # print frames
     #time.sleep(20)
  #   print frames
 #   input_signal=frames
-    outputsignal=echo_sound_functions.process_input_signal(frames,F_SAMP_ULTRA,chirp_low_freq,chirp_bandwidth, RECORD_DELAY, chirp_duration)
-
-    time.crash()
-    # wf=wave.open(WAVE_OUTPUT_FILENAME,'wb')
-    # wf.setnchannels(CHANNELS)
-    # wf.setsampwidth(precord.get_sample_size(FORMAT)) 
-    # wf.setframerate(RATE)
-    # wf.writeframes(b''.join(outputsignal))
-    # wf.close()
-    # wf=wave.open(WAVE_OUTPUT_FILENAME,'rb')
-
-    CHUNK=1024
+    outputsignal,playback_FS=echo_sound_functions.process_input_signal(frames,F_SAMP_ULTRA,chirp_low_freq,chirp_bandwidth, PLAY_DELAY, chirp_duration, echo_wait, slowdown)
+ #   print "zz"
+    outputsignal=outputsignal*32767
+    outputsignal=outputsignal.astype(np.int16)
+    #print np.max(outputsignal),np.min(outputsignal)
+    frames=outputsignal.tostring()
+   # p=pyaudio.PyAudio()
+   # wf = wave.open(LAST_CHIRP_FILENAME, 'wb')
+   # wf.setnchannels(CHANNELS)
+   # wf.setsampwidth(p.get_sample_size(FORMAT))
+   # wf.setframerate(playback_FS)
+   # wf.writeframes(frames)
+   # wf.close()
+   # wf=wave.open(LAST_CHIRP_FILENAME, 'rb')
+    CHUNK=4096
     p=pyaudio.PyAudio()
-    stream=p.open(format=FORMAT,
+    stream=p.open(format=pyaudio.paInt16,
                 channels=CHANNELS,
-                rate=RATE,
+                rate=playback_FS,
                 output=True,
                 output_device_index=head_out)
 
-    data = wf.readframes(CHUNK)
-
-    while data != '':
-        stream.write(data)
-        data = wf.readframes(CHUNK)
+    #data = wf.readframes(CHUNK)
+    print "playing"
+    #while data != '':
+    stream.write(frames)
+    print "done"
+    #    data = wf.readframes(CHUNK)
 
     stream.stop_stream()
     stream.close()
@@ -446,19 +524,43 @@ def EchoAndPlayback(swoop,echo_distance, slowdown, channel_list): #also incorpor
 
 
 def create_swoop_chirp():
-    p = pyaudio.PyAudio()
+    p=pyaudio.PyAudio()
     FORMAT=pyaudio.paInt16
     ultra_rate=192000
-    rs= echo_sound_functions.generate_rampswoop(192000,0.005,25000,25000+48000,1,1,0.0005)  
-    rsi=rs* 32767 
-    rswave=rsi.astype(np.int)
-    signal = "".join((wave.struct.pack('h', item) for item in rswave))  
-    writewav=wave.open("swoop.wav",'wb')
-    writewav.setnchannels(1)
-    writewav.setsampwidth(p.get_sample_size(FORMAT))
-    writewav.setframerate(ultra_rate)
-    writewav.writeframes(str(signal))
-    writewav.close()
+    rs= echo_sound_functions.generate_rampswoop(192000,0.005,25000,52000,1,1,0.0005)  
+    rswave=rs#.tostring()
+    #print rs.shape
+    #print rs
+    #rsi=rs* 32767
+    #rswave=rsi.astype(np.int16)
+    #print "XXX"
+    #print rswave
+   # print rsi.shape
+    #print np.max(rswave), np.min(rswave)
+    #signal=rswave.tostring()
+    #print signal[0:100]
+    #signal = "".join((wave.struct.pack('h', item) for item in rswave))
+    #print np.min(signal),np.max(signal)
+    #wavfile.write("swoop.wav",int(ultra_rate),rswave)
+    #print wavfile.read("swoop.wav")
+  #  writewav=wave.open("swoop.wav",'wb')
+   # writewav.setnchannels(1)
+ #   writewav.setframerate(int(ultra_rate/60))
+  #  writewav.setsampwidth(p.get_sample_size(FORMAT))
+  #  writewav.writeframes(str(signal) )
+  #  writewav.close()
+    
+   # wf=wave.open("swoop.wav",'rb')
+   # CHUNK=4096
+   # print wf.getsampwidth()
+    # stream=p.open(format=pyaudio.paInt16,
+                # channels=1,
+                # rate=9000,
+                # output=True,
+                # output_device_index=9)
+
+   # stream.write(rswave.tostring())
+    return rswave
 
 if __name__=="__main__":
     root=tk.Tk()
