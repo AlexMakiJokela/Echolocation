@@ -63,29 +63,40 @@ def process_input_signal(input_signal,F_SAMP_ULTRA,chirp_low_freq,chirp_bandwidt
         input_signal[:,jj] = highpass_filter(input_signal[:,jj], F_SAMP_ULTRA, 0.9*chirp_low_freq*1000)
         input_signal[:,jj] = lowpass_filter(input_signal[:,jj], F_SAMP_ULTRA, 1.0/0.9 * (chirp_low_freq + chirp_bandwidth)*1000)
     eind = np.floor((RECORD_DELAY*F_SAMP_ULTRA)) #silence in beginning
+    
+    #Create a rough range around where we expect to see the beginning of the chirp
     cut_range = np.arange(int(eind-2000),int(eind+5000))
     if np.max(cut_range) > input_signal.shape[0]:
         cut_range = cut_range - (np.max(cut_range) - input_signal.shape[0]+1) 
         eind = eind - (np.max(cut_range) - input_signal.shape[0]+1 )
     
-    
+    #Take just that range, and normalize it
     msig = np.abs(input_signal[cut_range,:]).max(1)
     msig = np.convolve(msig,np.ones((100)), 'same' )
+
+    #Set mind to the first part where the chirp begins 
     try: 
         mind = np.min( np.where( msig > 12*msig[0] ) )
     except:
         mind = 0
+
+    #Add the cut-out beginning to mind
     mind = mind + (eind-2000)
+
+    #Hey, a little margin never hut anyone
     gd = mind - 50
+    
+    #How long we expect the whole shebang to last. Or at least the important part of the whole shebang. 
     ACQUISITION_DURATION = echo_wait + chirp_duration*0.001
     ACQ_samp = np.floor(ACQUISITION_DURATION * F_SAMP_ULTRA)
     input_signal_cut = input_signal
-    
+     
+    #Cut the clip so that it only contains the chirps
     if input_signal.shape[0] > (np.min(gd)+ACQ_samp):
-        input_signal_cut = input_signal_cut[np.min(gd):,:]#(np.min(gd)+ACQ_samp), : ]  
+        input_signal_cut = input_signal_cut[np.min(gd):(np.min(gd)+ACQ_samp), : ]  
     else:
         input_signal_cut = input_signal_cut[np.min(gd):]
-    
+    #Actually we'll just play it back at this speed
     playback_FS = int(np.floor(F_SAMP_ULTRA / slowdown_ratio))
     return input_signal_cut, playback_FS
 

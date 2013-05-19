@@ -395,7 +395,7 @@ def EchoAndPlayback(swoop,echo_distance, slowdown, channel_list): #also incorpor
     F_SAMP_HEAD = 44100
     SILENCE_LENGTH = 0.08
     PLAY_DELAY = 0.0
-    RECORD_DELAY=0.75
+    RECORD_DELAY=0.120 #based on empirical evidence - see echo_1_bp.wav, echo_3_bp.wav, etc
     LAST_CHIRP_FILENAME="current_echo.wav"
     CHUNK=4096
     chirp_duration = 5 #bats are 2e-3 to 5e-3
@@ -476,18 +476,24 @@ def EchoAndPlayback(swoop,echo_distance, slowdown, channel_list): #also incorpor
    # print "x"
     #print the_recording
     frames=b''.join(frames)
-    wavfilnam="echo_"+str(echo_distance)+"_bp.wav"
-    savewave=wave(open(wavfilnam,"wb"))
-    savewave.setnchannels(2) ##MIGHT BE 1
-    savewave.setframerate(F_SAMP_ULTRA)
-    savewave.setsampwidth(p.get_sample_size(pyaudio.paInt16))
-    savewave.write(frames)
-    savewave.close()
   #  print len(frames)
     frames=np.fromstring(frames, dtype=np.float32)
     #frames=frames/32767.0
     #print frames
     frames=frames.reshape((-1,2))
+
+
+    #SAVE TO FILE: just here for figuring out cutoff timing
+    tosave=frames*32767
+    tosave=tosave.astype(np.int16)
+    tosave=tosave.tostring()
+    wavfilnam="echo_"+str(echo_distance)+"_bp.wav"
+    savewave=wave.open(wavfilnam,"wb")
+    savewave.setnchannels(2) ##MIGHT BE 1
+    savewave.setframerate(F_SAMP_ULTRA)
+    savewave.setsampwidth(p.get_sample_size(pyaudio.paInt16))
+    savewave.writeframes(tosave)
+    savewave.close()
     #print np.max(frames),np.min(frames)
    # print frames
     #time.sleep(20)
@@ -499,6 +505,15 @@ def EchoAndPlayback(swoop,echo_distance, slowdown, channel_list): #also incorpor
     outputsignal=outputsignal.astype(np.int16)
     #print np.max(outputsignal),np.min(outputsignal)
     frames=outputsignal.tostring()
+
+    #Save the files after processing
+    wavfilnam="echo_"+str(echo_distance)+"_cp.wav"
+    savewave=wave.open(wavfilnam,"wb")
+    savewave.setnchannels(2) ##MIGHT BE 1
+    savewave.setframerate(F_SAMP_ULTRA)
+    savewave.setsampwidth(p.get_sample_size(pyaudio.paInt16))
+    savewave.writeframes(tosave)
+    savewave.close()
    # p=pyaudio.PyAudio()
    # wf = wave.open(LAST_CHIRP_FILENAME, 'wb')
    # wf.setnchannels(CHANNELS)
