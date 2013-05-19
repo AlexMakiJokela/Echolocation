@@ -5,8 +5,9 @@ import scipy.signal
 import time
 import struct
 import pyaudio
+import collections
 
-def generate_rampswoop(sampling_rate, duration, start_f, end_f, harmonic_start, harmonic_num, cosramp_duration):
+def generate_rampswoop(sampling_rate, duration, start_f, end_f, harmonic_start, harmonic_num, cosramp_duration, inverted=False):
     t=np.arange(0,duration,1/sampling_rate)
     t=t[1:]
     start_f=start_f/harmonic_start
@@ -40,8 +41,18 @@ def generate_rampswoop(sampling_rate, duration, start_f, end_f, harmonic_start, 
 
     swoop=swoop*envelope
     swoop=swoop.flatten(1)
+    if inverted:
+        swoop=swoop[::-1]
     #print np.max(swoop), np.min(swoop)
-    return swoop
+    whole_shebang=collections.defaultdict()
+    whole_shebang["chirp"]=swoop
+    whole_shebang["sampling_rate"]=sampling_rate
+    whole_shebang["duration"]=duration
+    whole_shebang["start_f"]=start_f
+    whole_shebang["end_f"]=end_f
+    whole_shebang["inverted"]=inverted
+
+    return whole_shebang
 
 #highpass butterworth filtering of data x, with sampling rate Fs, and frequency cutoff c.
 def highpass_filter(x,Fs,c):

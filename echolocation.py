@@ -98,10 +98,10 @@ class The_GUI(tk.Frame):
         self.chirpdistancelabel.set("Play Chirp")
 
         self.possible_chirps=collections.defaultdict()
-        self.possible_chirps["1-Default"]=create_swoop_chirp()
-        self.possible_chirps["2-Long"]=create_long_swoop()
-        self.possible_chirps["3-Inverted"]=create_inv_swoop()
-        self.possible_chirps["4-Long Inverted"]=create_long_inv_swoop()
+        self.possible_chirps["1-Default"]=echo_sound_functions.generate_rampswoop(192000,0.005,25000,52000,1,1,0.0005) 
+        self.possible_chirps["2-Long"]=echo_sound_functions.generate_rampswoop(192000,0.02,25000,52000,1,1,0.002)    
+        self.possible_chirps["3-Inverted"]=echo_sound_functions.generate_rampswoop(192000,0.005,25000,52000,1,1,0.0005,inverted=True)
+        self.possible_chirps["4-Long Inverted"]=echo_sound_functions.generate_rampswoop(192000,0.02,25000,52000,1,1,0.002, inverted=True)
         self.chirp_to_play_name=tk.StringVar()
         self.chirp_to_play_name.set(self_chirpstart)
 
@@ -368,7 +368,7 @@ class The_GUI(tk.Frame):
 
 
 
-def EchoAndPlayback(swoop,echo_distance, slowdown, channel_list): #also incorporate chirp type, slowdown, volume. Pass in the chirp as a variable instead of reading from file each time
+def EchoAndPlayback(swoopdict,echo_distance, slowdown, channel_list): #also incorporate chirp type, slowdown, volume. Pass in the chirp as a variable instead of reading from file each time
     #SILENCE_LENGTH = 0.08 # the end of the chirp gets cut off if not for this
     #PLAY_DELAY = 0 # pause this long at the beginning
     # if we want to generate a harmonic stack instead of a single frequency
@@ -386,7 +386,7 @@ def EchoAndPlayback(swoop,echo_distance, slowdown, channel_list): #also incorpor
     the_recording=[]
 
 
-    
+    swoop=swoopdict["chirp"]
     
     #Microphone input settings
     FORMAT=pyaudio.paInt16
@@ -398,19 +398,18 @@ def EchoAndPlayback(swoop,echo_distance, slowdown, channel_list): #also incorpor
     RECORD_DELAY=0.120 #based on empirical evidence - see echo_1_bp.wav, echo_3_bp.wav, etc
     LAST_CHIRP_FILENAME="current_echo.wav"
     CHUNK=4096
-    chirp_duration = 5 #bats are 2e-3 to 5e-3
-    chirp_low_freq = 25
-    chirp_bandwidth = 48 - chirp_low_freq #bat minimum is around 2.5e4 to 3e4 in those bats which chirp
+    chirp_duration = swoopdict["duration"] #bats are 2e-3 to 5e-3
+    chirp_low_freq = swoopdict["start_f"]
+    chirp_bandwidth = swoopdict["end_f"]-swoopdict["start_f"] #bat minimum is around 2.5e4 to 3e4 in those bats which chirp
     print swoop.shape
     swoop=np.hstack((np.zeros(np.ceil(F_SAMP_ULTRA*PLAY_DELAY)),swoop,np.zeros(np.ceil(F_SAMP_ULTRA*(SILENCE_LENGTH+echo_wait)))))
     swoop=swoop*32767
     swoop=swoop.astype(np.int16)
     print swoop.shape
-    p=pyaudio.PyAudio()
-    writewav=wave.open("swoop.wav",'wb')
+    writewav=wave.open(CHIRP_INPUT_FILENAME,'wb')
     writewav.setnchannels(1)
     writewav.setframerate(F_SAMP_ULTRA)
-    writewav.setsampwidth(p.get_sample_size(pyaudio.paInt16))
+    writewav.setsampwidth(pyaudio.PyAudio().get_sample_size(pyaudio.paInt16))
     writewav.writeframes(swoop.tostring())
     writewav.close()
     
@@ -471,6 +470,7 @@ def EchoAndPlayback(swoop,echo_distance, slowdown, channel_list): #also incorpor
     outstream.close()
     pplay.terminate()
     precord.terminate()
+    chirp.close()
   #  print np.max(frames),np.min(frames)
   #  print len(frames)
    # print "x"
@@ -487,7 +487,7 @@ def EchoAndPlayback(swoop,echo_distance, slowdown, channel_list): #also incorpor
     tosave=frames*32767
     tosave=tosave.astype(np.int16)
     tosave=tosave.tostring()
-    wavfilnam="echo_"+str(echo_distance)+"_bp.wav"
+    wavfilnam="chirp_samples/echo_"+str(echo_distance)+"_bp.wav"
     savewave=wave.open(wavfilnam,"wb")
     savewave.setnchannels(2) ##MIGHT BE 1
     savewave.setframerate(F_SAMP_ULTRA)
@@ -507,7 +507,7 @@ def EchoAndPlayback(swoop,echo_distance, slowdown, channel_list): #also incorpor
     frames=outputsignal.tostring()
 
     #Save the files after processing
-    wavfilnam="echo_"+str(echo_distance)+"_cp.wav"
+    wavfilnam="chirp_samples/echo_"+str(echo_distance)+"_cp.wav"
     savewave=wave.open(wavfilnam,"wb")
     savewave.setnchannels(2) ##MIGHT BE 1
     savewave.setframerate(F_SAMP_ULTRA)
@@ -539,6 +539,7 @@ def EchoAndPlayback(swoop,echo_distance, slowdown, channel_list): #also incorpor
 
     stream.stop_stream()
     stream.close()
+    p.terminate()
     #time.sleep( max([0,size(input_signal_cut,1)/playback_FS - ACQUISITION_DURATION - SILENCE_LENGTH - PLAY_DELAY - RECORD_DELAY]) - PROC_DELAY )
 
 
@@ -551,13 +552,11 @@ def create_long_swoop():
     return rs
 
 def create_inv_swoop():
-    rs= echo_sound_functions.generate_rampswoop(192000,0.005,25000,52000,1,1,0.0005)      
-    rs= rs[::-1]
+    rs= echo_sound_functions.generate_rampswoop(192000,0.005,25000,52000,1,1,0.0005, inverted=True)      
     return rs
 
 def create_long_inv_swoop():
-    rs= echo_sound_functions.generate_rampswoop(192000,0.020,25000,52000,1,1,0.002)      
-    rs= rs[::-1]
+    rs= echo_sound_functions.generate_rampswoop(192000,0.020,25000,52000,1,1,0.002, inverted=True)    
     return rs
 
 if __name__=="__main__":
