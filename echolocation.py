@@ -482,6 +482,7 @@ def EchoAndPlayback(swoop,echo_distance, slowdown, channel_list): #also incorpor
     savewave.setframerate(F_SAMP_ULTRA)
     savewave.setsampwidth(p.get_sample_size(pyaudio.paInt16))
     savewave.write(frames)
+    savewave.close()
   #  print len(frames)
     frames=np.fromstring(frames, dtype=np.float32)
     #frames=frames/32767.0
