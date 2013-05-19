@@ -20,7 +20,12 @@ import echo_sound_functions
 #Clean up code
 
 
-
+#Oh damn I'm coding drunk!
+#Tocheck: Chirp switching logic
+#Tocheck: Save wav file for hardcoding silence gap logic
+#Tocheck: New chirp logic
+#Toset: The L button for switchin' chirps
+#GET ON IT.
 
 
 #taken from effbot.org/zone/tkinter-entry-validate.htm
@@ -69,7 +74,7 @@ class MaxLengthEntry(ValidatingEntry):
 
 class The_GUI(tk.Frame):
     def __init__(self, master, title="Sonic Eye", start_vol="50",start_slowdown="25",start_dist="3", start_onoff="On", 
-                start_automanual="Manual", self_chirpstartnum="0"):
+                start_automanual="Manual", self_chirpstart="1-Default"):
         tk.Frame.__init__(self,master)
         self.title=title
         self.grid()
@@ -93,23 +98,18 @@ class The_GUI(tk.Frame):
         self.chirpdistancelabel.set("Play Chirp")
 
         self.possible_chirps=collections.defaultdict()
-        self.chirplist=["(WIP)"]
-        self.possible_chirps["(WIP)"]="playbackexample.wav"
-        self.chirp_to_play_num=tk.StringVar()
+        self.possible_chirps["1-Default"]=create_swoop_chirp()
+        self.possible_chirps["2-Long"]=create_long_swoop()
+        self.possible_chirps["3-Inverted"]=create_inv_swoop()
+        self.possible_chirps["4-Long Inverted"]=create_long_inv_swoop()
         self.chirp_to_play_name=tk.StringVar()
-        self.chirp_to_play_num.set(self_chirpstartnum)
-        self.chirp_to_play_name.set(self.chirplist[int(self.chirp_to_play_num.get())])
-        if self.chirp_to_play_name.get() in self.possible_chirps:
-            self.chirp_to_play_sound=wave.open(self.possible_chirps[self.chirplist[int(self.chirp_to_play_num.get())]])
-        else:
-            self.chirp_to_play_name.set("Default")
-            self.chirp_to_play_sound=wave.open("some_filename.wav") #fix later
+        self.chirp_to_play_name.set(self_chirpstart)
 
         self.last_distance=tk.StringVar()
         self.last_distance.set(start_dist)
         self.ultra_in,self.ultra_out,self.head_out=self.get_channels()
         self.channel_list=[self.ultra_in,self.ultra_out,self.head_out]
-        self.swoop=create_swoop_chirp()
+        self.swoop=self.possible_chirps[self.chirp_to_play_name]
         self.createWidgets()
         master.bind("<Left>",self.DecreaseDistance)   #Set these a little differently
         master.bind("<Right>",self.IncreaseDistance)
@@ -252,18 +252,15 @@ class The_GUI(tk.Frame):
    #         automanual=self.automanual.get()
             
     def CycleChirp(self, event = None):
-        chirpnum=int(self.chirp_to_play_num.get())
-        if chirpnum>=(len(self.possible_chirps)-1):
-            chirpnum=0
-        else:
-            chirpnum+=1
-        self.chirp_to_play_num.set(str(chirpnum))
-        self.chirp_to_play_name.set(self.chirplist[int(self.chirp_to_play_num.get())])
-        if self.chirp_to_play_name.get() in self.possible_chirps:
-            self.chirp_to_play_sound=wave.open(self.possible_chirps[self.chirplist[int(self.chirp_to_play_num.get())]])
-        else:
-            self.chirp_to_play_name.set("Default")
-            self.chirp_to_play_sound=wave.open("some_filename.wav") #fix later
+        ctpn=self.chirp_to_play_name.get()
+        for i,chirp in enumerate(sorted(self.possible_chirps.keys.get())):
+            if ctpn==chirp:
+                if i<len(self.possible_chirps())-1:
+                    newchirptoget=sorted(self.possible_chirps.gets.get())[i+1]
+                else:
+                    newchirptoget=sorted(self.possible_chirps.gets.get())[0]
+                self.chirp_to_play_name.set(newchirptoget)
+        self.swoop=self.possible_chirps[self.chirp_to_play_name]
 
     def IncreaseVolume(self, event = None):
         volume=int(self.volume.get())
@@ -479,6 +476,12 @@ def EchoAndPlayback(swoop,echo_distance, slowdown, channel_list): #also incorpor
    # print "x"
     #print the_recording
     frames=b''.join(frames)
+    wavfilnam="echo_"+str(echo_distance)+"_bp.wav"
+    savewave=wave(open(wavfilnam,"wb"))
+    savewave.setnchannels(2) ##MIGHT BE 1
+    savewave.setframerate(F_SAMP_ULTRA)
+    savewave.setsampwidth(p.get_sample_size(pyaudio.paInt16))
+    savewave.write(frames)
   #  print len(frames)
     frames=np.fromstring(frames, dtype=np.float32)
     #frames=frames/32767.0
@@ -524,43 +527,22 @@ def EchoAndPlayback(swoop,echo_distance, slowdown, channel_list): #also incorpor
 
 
 def create_swoop_chirp():
-    p=pyaudio.PyAudio()
-    FORMAT=pyaudio.paInt16
-    ultra_rate=192000
-    rs= echo_sound_functions.generate_rampswoop(192000,0.005,25000,52000,1,1,0.0005)  
-    rswave=rs#.tostring()
-    #print rs.shape
-    #print rs
-    #rsi=rs* 32767
-    #rswave=rsi.astype(np.int16)
-    #print "XXX"
-    #print rswave
-   # print rsi.shape
-    #print np.max(rswave), np.min(rswave)
-    #signal=rswave.tostring()
-    #print signal[0:100]
-    #signal = "".join((wave.struct.pack('h', item) for item in rswave))
-    #print np.min(signal),np.max(signal)
-    #wavfile.write("swoop.wav",int(ultra_rate),rswave)
-    #print wavfile.read("swoop.wav")
-  #  writewav=wave.open("swoop.wav",'wb')
-   # writewav.setnchannels(1)
- #   writewav.setframerate(int(ultra_rate/60))
-  #  writewav.setsampwidth(p.get_sample_size(FORMAT))
-  #  writewav.writeframes(str(signal) )
-  #  writewav.close()
-    
-   # wf=wave.open("swoop.wav",'rb')
-   # CHUNK=4096
-   # print wf.getsampwidth()
-    # stream=p.open(format=pyaudio.paInt16,
-                # channels=1,
-                # rate=9000,
-                # output=True,
-                # output_device_index=9)
+    rs= echo_sound_functions.generate_rampswoop(192000,0.005,25000,52000,1,1,0.0005)      
+    return rs
 
-   # stream.write(rswave.tostring())
-    return rswave
+def create_long_swoop():
+    rs= echo_sound_functions.generate_rampswoop(192000,0.020,25000,52000,1,1,0.002)      
+    return rs
+
+def create_inv_swoop():
+    rs= echo_sound_functions.generate_rampswoop(192000,0.005,25000,52000,1,1,0.0005)      
+    rs=np.fliplr(rs)
+    return rs
+
+def create_long_inv_swoop():
+    rs= echo_sound_functions.generate_rampswoop(192000,0.020,25000,52000,1,1,0.002)      
+    rs=np.fliplr(rs)
+    return rs
 
 if __name__=="__main__":
     root=tk.Tk()
