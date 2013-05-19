@@ -109,7 +109,7 @@ class The_GUI(tk.Frame):
         self.last_distance.set(start_dist)
         self.ultra_in,self.ultra_out,self.head_out=self.get_channels()
         self.channel_list=[self.ultra_in,self.ultra_out,self.head_out]
-        self.swoop=self.possible_chirps[self.chirp_to_play_name]
+        self.swoop=self.possible_chirps[self.chirp_to_play_name.get()]
         self.createWidgets()
         master.bind("<Left>",self.DecreaseDistance)   #Set these a little differently
         master.bind("<Right>",self.IncreaseDistance)
@@ -152,7 +152,7 @@ class The_GUI(tk.Frame):
 
         self.chirpSelFrame      =tk.Frame(self)
         self.chirpSelTitle      =tk.Label(text="Chirp Type: ",width=12,font=('Arial','20'))
-        self.chirpSelText       =tk.Label(textvariable=self.chirp_to_play_name,width=10,font=('Arial','15'))
+        self.chirpSelText       =tk.Label(textvariable=self.chirp_to_play_name,width=15,font=('Arial','15'))
         self.chirpSwitchButton  =tk.Button(self, text='Change',   command=self.CycleChirp,font=('Arial','15'))    
 
        # self.volFrame           =tk.Frame(self)
@@ -253,14 +253,14 @@ class The_GUI(tk.Frame):
             
     def CycleChirp(self, event = None):
         ctpn=self.chirp_to_play_name.get()
-        for i,chirp in enumerate(sorted(self.possible_chirps.keys.get())):
+        for i,chirp in enumerate(sorted(self.possible_chirps.keys())):
             if ctpn==chirp:
-                if i<len(self.possible_chirps())-1:
-                    newchirptoget=sorted(self.possible_chirps.gets.get())[i+1]
+                if i<len(self.possible_chirps)-1:
+                    newchirptoget=sorted(self.possible_chirps.keys())[i+1]
                 else:
-                    newchirptoget=sorted(self.possible_chirps.gets.get())[0]
+                    newchirptoget=sorted(self.possible_chirps.keys())[0]
                 self.chirp_to_play_name.set(newchirptoget)
-        self.swoop=self.possible_chirps[self.chirp_to_play_name]
+        self.swoop=self.possible_chirps[self.chirp_to_play_name.get()]
 
     def IncreaseVolume(self, event = None):
         volume=int(self.volume.get())
@@ -536,12 +536,12 @@ def create_long_swoop():
 
 def create_inv_swoop():
     rs= echo_sound_functions.generate_rampswoop(192000,0.005,25000,52000,1,1,0.0005)      
-    rs=np.fliplr(rs)
+    rs= rs[::-1]
     return rs
 
 def create_long_inv_swoop():
     rs= echo_sound_functions.generate_rampswoop(192000,0.020,25000,52000,1,1,0.002)      
-    rs=np.fliplr(rs)
+    rs= rs[::-1]
     return rs
 
 if __name__=="__main__":
