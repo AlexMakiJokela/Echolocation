@@ -396,10 +396,10 @@ def EchoAndPlayback(swoop,echo_distance, slowdown, channel_list): #also incorpor
     CHANNELS=2
     F_SAMP_ULTRA = 192000
     F_SAMP_HEAD = 44100
-    SILENCE_LENGTH = 0.2
-    PLAY_DELAY = 0.04
+    SILENCE_LENGTH = 0.08
+    PLAY_DELAY = 0.0
+    RECORD_DELAY=0.75
     LAST_CHIRP_FILENAME="current_echo.wav"
-    RECORD_DELAY = 0
     CHUNK=4096
     chirp_duration = 5 #bats are 2e-3 to 5e-3
     chirp_low_freq = 25
@@ -489,7 +489,7 @@ def EchoAndPlayback(swoop,echo_distance, slowdown, channel_list): #also incorpor
     #time.sleep(20)
  #   print frames
 #   input_signal=frames
-    outputsignal,playback_FS=echo_sound_functions.process_input_signal(frames,F_SAMP_ULTRA,chirp_low_freq,chirp_bandwidth, PLAY_DELAY, chirp_duration, echo_wait, slowdown)
+    outputsignal,playback_FS=echo_sound_functions.process_input_signal(frames,F_SAMP_ULTRA,chirp_low_freq,chirp_bandwidth, RECORD_DELAY, chirp_duration, echo_wait, slowdown)
  #   print "zz"
     outputsignal=outputsignal*32767
     outputsignal=outputsignal.astype(np.int16)

@@ -62,7 +62,7 @@ def process_input_signal(input_signal,F_SAMP_ULTRA,chirp_low_freq,chirp_bandwidt
     for jj in [0,1]:
         input_signal[:,jj] = highpass_filter(input_signal[:,jj], F_SAMP_ULTRA, 0.9*chirp_low_freq*1000)
         input_signal[:,jj] = lowpass_filter(input_signal[:,jj], F_SAMP_ULTRA, 1.0/0.9 * (chirp_low_freq + chirp_bandwidth)*1000)
-    eind = np.floor((RECORD_DELAY*F_SAMP_ULTRA))
+    eind = np.floor((RECORD_DELAY*F_SAMP_ULTRA)) #silence in beginning
     cut_range = np.arange(int(eind-2000),int(eind+5000))
     if np.max(cut_range) > input_signal.shape[0]:
         cut_range = cut_range - (np.max(cut_range) - input_signal.shape[0]+1) 
@@ -85,6 +85,7 @@ def process_input_signal(input_signal,F_SAMP_ULTRA,chirp_low_freq,chirp_bandwidt
         input_signal_cut = input_signal_cut[np.min(gd):,:]#(np.min(gd)+ACQ_samp), : ]  
     else:
         input_signal_cut = input_signal_cut[np.min(gd):]
+    
     playback_FS = int(np.floor(F_SAMP_ULTRA / slowdown_ratio))
     return input_signal_cut, playback_FS
 
